@@ -1,30 +1,35 @@
 name: Deploy to staging
+
 on:
   push:
     branches:
       - main
+
 jobs:
   redeploy_everything:
-    name: Deploying everyhting to the  staging cluster
+    name: Deploying everything to the staging cluster
     runs-on: ubuntu-latest
+
     steps:
-      - name: SSH to server
-        run: >
-          echo "${{ secrets.AWS_SECRET_ACCESS_KEY }}" > arpit.pem
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
+      - name: Setup SSH
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > arpit.pem
           chmod 600 arpit.pem
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ec2-13-201-87-73.ap-south-1.compute.amazonaws.com >> ~/.ssh/known_hosts
 
-          ssh  -i arpit.pem
-          ubuntu@ec2-13-201-87-73.ap-south-1.compute.amazonaws.com
+      - name: Deploy to EC2
+        run: |
+          ssh -i arpit.pem ubuntu@ec2-13-201-87-73.ap-south-1.compute.amazonaws.com << 'EOF'
+            cd devops-monorepo-ci-cd
+            git pull origin main
+            pnpm install
+            pnpm run build
 
-          cd devops-monorepo-ci-cd/ && git pull
-
-          pnpm install
-
-          pnpm run build
-
-          pm2 start fe-server
-
-          pm2 start ws-server
-
-          pm2 start http-server
+            pm2 restart fe-server || pm2 start fe-server
+            pm2 restart ws-server || pm2 start ws-server
+            pm2 restart http-server || pm2 start http-server
+          EOF
