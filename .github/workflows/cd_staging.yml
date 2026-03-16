@@ -6,6 +6,7 @@ on:
 jobs:
   redeploy_everything:
     name: Deploying everyhting to the  staging cluster
+    runs-on: ubuntu-latest
     steps:
       - name: SSH to server
         run: >
